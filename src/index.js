@@ -27,8 +27,13 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+// Initial camera position (will follow player)
 camera.position.set(10, 10, 10);
 camera.lookAt(0, 0, 0);
+
+// Camera offset from player (isometric-like view)
+const cameraOffset = new THREE.Vector3(10, 10, 10);
+const cameraLookAtOffset = new THREE.Vector3(0, 0, 0); // Look directly at player
 
 // Setup renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -48,10 +53,15 @@ directionalLight.shadow.mapSize.width = 1024;
 directionalLight.shadow.mapSize.height = 1024;
 scene.add(directionalLight);
 
-// Add controls for development
+// Add controls for camera rotation
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+controls.enablePan = false; // Disable panning since camera will follow player
+controls.enableZoom = true; // Allow zooming in/out
+controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent camera from going below ground
+controls.minDistance = 5; // Minimum zoom distance
+controls.maxDistance = 20; // Maximum zoom distance
 
 // Create environment
 const environment = createEnvironment(scene);
@@ -78,6 +88,27 @@ function updateUI() {
   document.getElementById("zombieCount").textContent = gameState.zombieCount;
 }
 
+// Update camera position to follow player
+function updateCamera() {
+  // Get the current camera orbit position relative to the target
+  const cameraDirection = new THREE.Vector3().subVectors(
+    camera.position,
+    controls.target
+  );
+
+  // Set the controls target to the player position
+  controls.target.copy(gameState.player.position);
+
+  // Update camera position to maintain the same relative position to the player
+  camera.position.copy(gameState.player.position).add(cameraDirection);
+
+  // Update the directional light to follow the player
+  directionalLight.position
+    .copy(gameState.player.position)
+    .add(new THREE.Vector3(5, 10, 5));
+  directionalLight.target = gameState.player;
+}
+
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
@@ -90,6 +121,9 @@ function animate() {
 
     // Update player
     gameState.player.update();
+
+    // Update camera to follow player
+    updateCamera();
 
     // Update UI
     updateUI();
