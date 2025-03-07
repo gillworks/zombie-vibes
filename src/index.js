@@ -62,6 +62,16 @@ controls.enableZoom = true; // Allow zooming in/out
 controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent camera from going below ground
 controls.minDistance = 5; // Minimum zoom distance
 controls.maxDistance = 20; // Maximum zoom distance
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.ROTATE, // Default behavior
+  MIDDLE: THREE.MOUSE.DOLLY, // Zoom with middle mouse button
+  RIGHT: THREE.MOUSE.ROTATE, // Use right mouse button for rotation
+};
+// Set left mouse button to do nothing (we'll use it for attacking)
+controls.mouseButtons.LEFT = null;
+// Ensure mouse wheel zooming works
+controls.enableZoom = true;
+controls.zoomSpeed = 1.0;
 
 // Create environment
 const environment = createEnvironment(scene);
@@ -145,6 +155,10 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// Update the controls info in the UI
+document.getElementById("controls").innerHTML =
+  "<p>WASD: Move | Right Mouse: Rotate Camera | Mouse Wheel: Zoom | Left Click: Attack</p>";
 
 // Hide loading screen
 window.addEventListener("load", () => {
