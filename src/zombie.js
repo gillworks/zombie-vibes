@@ -49,9 +49,6 @@ const zombieTypes = [
   },
 ];
 
-// Track time for frame rate independence
-let lastFrameTime = Date.now();
-
 export function createZombie(scene, x, y, z, gameState) {
   // Randomly select a zombie type
   const zombieType =
@@ -77,7 +74,6 @@ export function createZombie(scene, x, y, z, gameState) {
     attackRadius: zombieType.attackRadius,
     lastAttackTime: 0,
     attackCooldown: 1000, // 1 second between attacks
-    lastPosition: new THREE.Vector3(x, y + 0.9, z), // Store last position to detect collisions
 
     // Damage function
     takeDamage: function (amount) {
@@ -116,61 +112,20 @@ export function createZombie(scene, x, y, z, gameState) {
 
   // Update function with unique behaviors based on zombie type
   zombie.update = function (playerPosition) {
-    // Calculate time delta for frame rate independence
-    const now = Date.now();
-    const deltaTime = (now - lastFrameTime) / 16.67; // Normalize to 60fps
-    lastFrameTime = now;
-
     // Calculate direction to player
     const direction = new THREE.Vector3();
     direction.subVectors(playerPosition, zombie.position).normalize();
 
-    // Calculate distance to player
-    const distanceToPlayer = zombie.position.distanceTo(playerPosition);
-
-    // Store the last position before moving
-    zombie.userData.lastPosition.copy(zombie.position);
-
-    // Calculate movement distance for this frame
-    const moveDistance = zombie.userData.speed * deltaTime;
-
-    // Limit maximum movement per frame to prevent teleporting
-    const maxMoveDistance = 0.1; // Maximum distance per frame
-    const actualMoveDistance = Math.min(moveDistance, maxMoveDistance);
-
-    // Only move if not too close to player (prevents zombies from walking through player)
-    if (distanceToPlayer > 1.0) {
-      // Move towards player with zombie's speed
-      zombie.position.x += direction.x * actualMoveDistance;
-      zombie.position.z += direction.z * actualMoveDistance;
-    }
-
-    // Check for collisions with other zombies
-    gameState.zombies.forEach((otherZombie) => {
-      if (otherZombie !== zombie) {
-        const distanceToOtherZombie = zombie.position.distanceTo(
-          otherZombie.position
-        );
-
-        // If too close to another zombie, move back slightly
-        if (distanceToOtherZombie < 1.2) {
-          // Calculate direction away from other zombie
-          const avoidDirection = new THREE.Vector3();
-          avoidDirection
-            .subVectors(zombie.position, otherZombie.position)
-            .normalize();
-
-          // Move slightly away
-          zombie.position.x += avoidDirection.x * 0.01;
-          zombie.position.z += avoidDirection.z * 0.01;
-        }
-      }
-    });
+    // Move towards player with zombie's speed
+    zombie.position.x += direction.x * zombie.userData.speed;
+    zombie.position.z += direction.z * zombie.userData.speed;
 
     // Keep zombie on the ground
     zombie.position.y = 0.9;
 
     // Check if close enough to attack
+    const distanceToPlayer = zombie.position.distanceTo(playerPosition);
+
     if (distanceToPlayer < zombie.userData.attackRadius) {
       const now = Date.now();
 
