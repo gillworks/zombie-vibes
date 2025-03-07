@@ -49,6 +49,24 @@ const zombieTypes = [
   },
 ];
 
+// Debug logging function
+function logZombieMovement(zombie, oldPosition, newPosition, distance) {
+  // Only log significant movements (potential teleports)
+  if (distance > 0.5) {
+    console.log(
+      `[ZOMBIE DEBUG] ${zombie.userData.type} moved ${distance.toFixed(
+        2
+      )} units in one frame!`
+    );
+    console.log(
+      `  From: (${oldPosition.x.toFixed(2)}, ${oldPosition.z.toFixed(2)})`
+    );
+    console.log(
+      `  To: (${newPosition.x.toFixed(2)}, ${newPosition.z.toFixed(2)})`
+    );
+  }
+}
+
 export function createZombie(scene, x, y, z, gameState) {
   // Randomly select a zombie type
   const zombieType =
@@ -74,6 +92,7 @@ export function createZombie(scene, x, y, z, gameState) {
     attackRadius: zombieType.attackRadius,
     lastAttackTime: 0,
     attackCooldown: 1000, // 1 second between attacks
+    lastPosition: new THREE.Vector3(x, y + 0.9, z), // For tracking movement
 
     // Damage function
     takeDamage: function (amount) {
@@ -91,15 +110,22 @@ export function createZombie(scene, x, y, z, gameState) {
         gameState.zombies = gameState.zombies.filter((z) => z !== zombie);
         gameState.zombieCount--;
 
+        // Log zombie death and respawn
+        console.log(
+          `[ZOMBIE DEBUG] ${zombie.userData.type} died and will respawn in 5 seconds`
+        );
+
         // Spawn a new zombie after some time
         setTimeout(() => {
-          const newZombie = createZombie(
-            scene,
-            Math.random() * 30 - 15,
-            0,
-            Math.random() * 30 - 15,
-            gameState
+          const newX = Math.random() * 30 - 15;
+          const newZ = Math.random() * 30 - 15;
+          console.log(
+            `[ZOMBIE DEBUG] Respawning new zombie at (${newX.toFixed(
+              2
+            )}, ${newZ.toFixed(2)})`
           );
+
+          const newZombie = createZombie(scene, newX, 0, newZ, gameState);
           gameState.zombies.push(newZombie);
           gameState.zombieCount++;
         }, 5000);
@@ -107,11 +133,21 @@ export function createZombie(scene, x, y, z, gameState) {
     },
   };
 
+  // Log zombie creation
+  console.log(
+    `[ZOMBIE DEBUG] Created ${zombieType.name} at (${x.toFixed(2)}, ${z.toFixed(
+      2
+    )})`
+  );
+
   // Add to scene
   scene.add(zombie);
 
   // Update function with unique behaviors based on zombie type
   zombie.update = function (playerPosition) {
+    // Store current position before movement
+    const oldPosition = zombie.position.clone();
+
     // Calculate direction to player
     const direction = new THREE.Vector3();
     direction.subVectors(playerPosition, zombie.position).normalize();
@@ -122,6 +158,15 @@ export function createZombie(scene, x, y, z, gameState) {
 
     // Keep zombie on the ground
     zombie.position.y = 0.9;
+
+    // Calculate distance moved this frame
+    const distanceMoved = oldPosition.distanceTo(zombie.position);
+
+    // Log movement if significant
+    logZombieMovement(zombie, oldPosition, zombie.position, distanceMoved);
+
+    // Update last position
+    zombie.userData.lastPosition = zombie.position.clone();
 
     // Check if close enough to attack
     const distanceToPlayer = zombie.position.distanceTo(playerPosition);
@@ -138,6 +183,11 @@ export function createZombie(scene, x, y, z, gameState) {
 
         // Deal damage to player
         gameState.health -= zombie.userData.damage;
+
+        // Log attack
+        console.log(
+          `[ZOMBIE DEBUG] ${zombie.userData.type} attacked player for ${zombie.userData.damage} damage`
+        );
 
         // Visual feedback for attack
         const originalScale = zombie.scale.clone();
@@ -162,8 +212,16 @@ export function createZombie(scene, x, y, z, gameState) {
               // Temporarily increase other zombies' speed
               otherZombie.userData.speed *= 1.2;
 
+              // Log speed boost
+              console.log(
+                `[ZOMBIE DEBUG] Screamer boosted ${otherZombie.userData.type}'s speed`
+              );
+
               setTimeout(() => {
                 otherZombie.userData.speed /= 1.2;
+                console.log(
+                  `[ZOMBIE DEBUG] ${otherZombie.userData.type}'s speed boost ended`
+                );
               }, 2000);
             }
           });
@@ -183,6 +241,13 @@ export function createZombie(scene, x, y, z, gameState) {
             zombie.userData.attackCooldown * 2
           ) {
             zombie.userData.lastAttackTime = now;
+
+            // Log spit attack
+            console.log(
+              `[ZOMBIE DEBUG] Spitter launched projectile at player from distance ${distanceToPlayer.toFixed(
+                2
+              )}`
+            );
 
             // "Spit" at player (visual effect)
             const spitGeometry = new THREE.SphereGeometry(0.2);
@@ -207,6 +272,9 @@ export function createZombie(scene, x, y, z, gameState) {
               // Check if spit hit player
               if (spit.position.distanceTo(playerPosition) < 1) {
                 gameState.health -= zombie.userData.damage;
+                console.log(
+                  `[ZOMBIE DEBUG] Spitter projectile hit player for ${zombie.userData.damage} damage`
+                );
                 scene.remove(spit);
                 return;
               }
@@ -216,6 +284,9 @@ export function createZombie(scene, x, y, z, gameState) {
                 spit.position.distanceTo(zombie.position) >
                 zombie.userData.attackRadius
               ) {
+                console.log(
+                  `[ZOMBIE DEBUG] Spitter projectile missed and dissipated`
+                );
                 scene.remove(spit);
                 return;
               }
